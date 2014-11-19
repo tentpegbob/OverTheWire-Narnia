@@ -158,9 +158,9 @@ Still no solution. Now I want to create a situation where the program does somet
         ||                         ||
         ||                         ||         So I discovered I had the stack improperly setup
         ||-------------------------||         because a long is actually 4096 bytes in size.
-        ||                         ||         This was demonstrated by the fact /bin/sh received
+        ||  buff overflow (4 bytes)||         This was demonstrated by the fact /bin/sh received
                   .......                     the input that overflowed from the crafted string
-        || long val ( 4096 bytes ) ||         that I sent.
+        || long val ( 4092 bytes ) ||         that I sent.
                   .......
         ||                         ||
         ||-------------------------||
