@@ -80,7 +80,7 @@ From inspecting the code we can see that the stack looks something like this:
         ||-------------------------||
         ||                         ||
         ||                         ||
-        || char buff ( 20 bytes )  ||
+        || char buff ( 20 bytes )  ||       
         ||                         ||
         ||                         ||
         ||-------------------------||
@@ -98,16 +98,18 @@ Alright now that I know this let's try some crafted input.
   narnia0@melinda:/narnia$
   
 Well that's great, we've just confirmed that we can affect what goes into long val.
-It's confirmed that i can overwrite the buffer.
-        ||-------------------------||
-        ||                         ||
-        ||                         ||
-        || char buff ( 20 bytes )  ||
-        ||                         ||
-        ||                         ||
-        ||-------------------------||
-        ||   long val ( 4 bytes )  ||
-        ||-------------------------||
+It's confirmed that i can overwrite the buffer. Apaprently, I was correct in how the
+stack looked and inside it would look similar to this (except in hexadecimal 
+representation).
+        ||--------------||
+        ||  0x41414141  ||    Note that 0x41 = A and 0x42 = B
+        ||  0x41414141  ||
+        ||  0x41414141  ||     char buff ( 20 bytes )
+        ||  0x41414141  ||
+        ||  0x41414141  ||
+        ||--------------||
+        ||  0x42424242  ||     long val ( 4 bytes )
+        ||--------------||
 
  Now let's try it with deadbeef in there.
 -> perl -e 'print "A"x20 . "deadbeef"' | ./narnia0
