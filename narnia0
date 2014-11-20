@@ -67,7 +67,8 @@ Well that's interesting that it did something weird with %p. Now let's check the
   	                                //because it was initialized on the stack below it
 
   	if(val==0xdeadbeef)             //a successful overflow input will give me a shell!
-  		system("/bin/sh");
+  		system("/bin/sh");            //system passes a command to the shell and in
+  		                              //this case attempts to open a shell
   	else {
   		printf("WAY OFF!!!!\n");
   		exit(1);
