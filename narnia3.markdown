@@ -3,15 +3,12 @@ This is a solution guide to the Narnia3 Level at [overthewire](http://overthewir
 This write-up was created on 6 October 2015.
 
 First connect to the lab
-<ul><li> ssh narnia3@narnia.labs.overthewire.org</li>
-<li> Enter the following as the password vaequeezee</li></ul>
+* ssh narnia3@narnia.labs.overthewire.org
+* Enter the following as the password vaequeezee
 
-Change directories to the narnia games folder
-```cd /narnia```
+Change directories to the narnia games folder: `cd /narnia`
 
-First let's examine how we get the password for the next level.
-
-```less narnia3.c```
+First let's examine how we get the password for the next level: `less narnia3.c`
 
 ```c
 int main(int argc, char **argv){
@@ -66,8 +63,8 @@ BUGS
  
 Great so now we know we have another buffer overflow, and you can find more information about buffer overflows at [exploit-db](https://www.exploit-db.com/papers/13207/). So knowing this information we now know that strcpy() will take everything it finds in argv[1] until it reaches a null character, but the buffer for ifile is only 32 bytes. If our argv[1] were longer than 32 bytes it would overflow into something, but now the question is:
 
-(ul)(li)What is the something that argv[1] overuns?(/li)
-(li)Can we take advantage of the buffer overrun and make it do something unintended?(/li>(/ul)
+* What is the something that argv[1] overuns?
+* Can we take advantage of the buffer overrun and make it do something unintended?
 
 First, lets make some files. Since we know that the buffer needs to be overrun by 32 bytes we need to name a file something that is larger than 32 bytes. After the file is created we can test our theory with:
 
