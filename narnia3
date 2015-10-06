@@ -13,7 +13,7 @@ Change directories to the narnia games folder
 First let's examine how we get the password for the next level.
 
 -> less narnia3.c
-
+``` c
 int main(int argc, char **argv){
  
         int  ifd,  ofd;
@@ -40,6 +40,7 @@ int main(int argc, char **argv){
  
         exit(1);
 }
+111
 
 This is an interesting problem because the program accepts multiple command line arguments.
 This includes a strcpy of the 2nd argument in the command line to a buffer called ifile.
