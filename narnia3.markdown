@@ -4,15 +4,16 @@ http://overthewire.org/wargames/narnia/
 This write-up was created on 28 February 2015.
 
 First connect to the lab
--> ssh narnia3@narnia.labs.overthewire.org
--> Enter the following as the password vaequeezee
+<ul><li> ssh narnia3@narnia.labs.overthewire.org</li>
+<li> Enter the following as the password vaequeezee</li></ul>
 
 Change directories to the narnia games folder
--> cd /narnia
+```cd /narnia```
 
 First let's examine how we get the password for the next level.
 
--> less narnia3.c
+```less narnia3.c```
+
 ```c
 int main(int argc, char **argv){
  
@@ -29,18 +30,18 @@ int main(int argc, char **argv){
         /* open files */
         strcpy(ifile, argv[1]);
 
-... code removed for brevity
+//... code removed for brevity
  
         /* copy from file1 to file2 */
         read(ifd, buf, sizeof(buf)-1);
         write(ofd,buf, sizeof(buf)-1);
         printf("copied contents of %s to a safer place... (%s)\n",ifile,ofile);
  
- ... code removed for brevity
+// ... code removed for brevity
  
         exit(1);
 }
-111
+```
 
 This is an interesting problem because the program accepts multiple command line arguments.
 This includes a strcpy of the 2nd argument in the command line to a buffer called ifile.
