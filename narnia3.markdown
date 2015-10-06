@@ -70,7 +70,12 @@ First, lets make some files. Since we know that the buffer needs to be overrun b
 
 ```bash 
 python -c 'print(len("/tmp/" + "a"*27))' #verify our temp folder is long enough
-mkdir -p $(python -c 'print ("/tmp/" + "a"*27 + "/")') #create the directory
-cd $(python -c 'print ("/tmp/" + "a"*27 + "/")') #change to the directory
-/narnia/narnia3 `pwd`/test-theory #test theory
+mkdir -p $(python -c 'print ("/tmp/" + "a"*27 + "/tmp")') #create the directory
+cd $(python -c 'print ("/tmp/" + "a"*27 + "/tmp")') #change to the directory
+/narnia/narnia3 `pwd`/abc #test theory
 ```
+
+This creates a directory in the tmp folder called aaaaaaaaaaaaaaaaaaaaaaaaaaa and the screenshot tells us that we are either overunning the ifile or the ofile. Let's examine which we are overrunning with `objdump -d -M intel /narnia/narnia3`
+
+
+Beginning at 0x8048526 the character string /dev/null for ofile is placed onto the top of the stack at esp+58, followed by ifile at esp+38 as shown at 0x8048579.
